@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct ConfigFile {
     #[serde(default)]
-    pub spotify: SpotifyConfig,
+    pub discord: DiscordConfig,
 }
 
 impl ConfigFile {
@@ -27,7 +27,7 @@ impl ConfigFile {
             .into_iter()
             .flatten()
         {
-            let path = path.join("spotify-launcher.conf");
+            let path = path.join("discord-launcher.conf");
             debug!("Searching for configuration file at {:?}", path);
             if path.exists() {
                 debug!("Found configuration file at {:?}", path);
@@ -48,7 +48,7 @@ impl ConfigFile {
 }
 
 #[derive(Debug, Default, PartialEq, Serialize, Deserialize)]
-pub struct SpotifyConfig {
+pub struct DiscordConfig {
     #[serde(default)]
     pub extra_arguments: Vec<String>,
     #[serde(default)]
@@ -68,8 +68,8 @@ mod tests {
     }
 
     #[test]
-    fn test_empty_spotify_config() -> Result<()> {
-        let cf = ConfigFile::parse("[spotify]")?;
+    fn test_empty_discord_config() -> Result<()> {
+        let cf = ConfigFile::parse("[discord]")?;
         assert_eq!(cf, ConfigFile::default());
         Ok(())
     }

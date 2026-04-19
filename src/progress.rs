@@ -11,7 +11,7 @@ impl ProgressBar {
         let ui = Zenity::spawn(&[
             "--progress",
             "--title",
-            "Downloading spotify",
+            "Downloading Discord",
             "--text=Downloading...",
             "--no-cancel",
             "--ok-label",

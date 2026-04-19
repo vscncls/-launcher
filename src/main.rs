@@ -1,13 +1,13 @@
 use clap::Parser;
+use discord_launcher::args::Args;
+use discord_launcher::config::ConfigFile;
+use discord_launcher::discord;
+use discord_launcher::discord::Client;
+use discord_launcher::errors::*;
+use discord_launcher::extract;
+use discord_launcher::paths;
+use discord_launcher::ui;
 use env_logger::Env;
-use spotify_launcher::apt;
-use spotify_launcher::apt::Client;
-use spotify_launcher::args::Args;
-use spotify_launcher::config::ConfigFile;
-use spotify_launcher::errors::*;
-use spotify_launcher::extract;
-use spotify_launcher::paths;
-use spotify_launcher::ui;
 use std::ffi::CString;
 use std::path::Path;
 use std::time::Duration;
@@ -17,18 +17,17 @@ use tokio::fs;
 const UPDATE_CHECK_INTERVAL: u64 = 3600 * 24;
 
 struct VersionCheck {
-    deb: Option<Vec<u8>>,
+    tarball: Option<Vec<u8>>,
     version: String,
 }
 
 async fn should_update(args: &Args, state: Option<&paths::State>) -> Result<bool> {
-    if args.force_update || args.check_update || args.deb.is_some() {
+    if args.force_update || args.check_update || args.tarball.is_some() {
         Ok(true)
     } else if args.skip_update {
         Ok(false)
     } else if let Some(state) = &state {
         let Ok(since_update) = SystemTime::now().duration_since(state.last_update_check) else {
-            // if the last update time is somehow in the future, check for updates now
             return Ok(true);
         };
 
@@ -46,51 +45,44 @@ async fn should_update(args: &Args, state: Option<&paths::State>) -> Result<bool
     }
 }
 
-async fn print_deb_url(args: &Args) -> Result<()> {
-    let client = Client::new(args.timeout)?;
-    let pkg = client.fetch_pkg_release(&args.keyring).await?;
-    println!("{}", pkg.download_url());
-    Ok(())
-}
-
 async fn update(
     args: &Args,
     state: Option<&paths::State>,
     install_path: &Path,
     download_attempts: usize,
 ) -> Result<()> {
-    let update = if let Some(deb_path) = &args.deb {
-        let deb = fs::read(deb_path)
+    let update = if let Some(tarball_path) = &args.tarball {
+        let tarball = fs::read(tarball_path)
             .await
-            .with_context(|| anyhow!("Failed to read .deb file from {:?}", deb_path))?;
+            .with_context(|| anyhow!("Failed to read tarball from {:?}", tarball_path))?;
         VersionCheck {
-            deb: Some(deb),
+            tarball: Some(tarball),
             version: "0".to_string(),
         }
     } else {
         let client = Client::new(args.timeout)?;
-        let pkg = client.fetch_pkg_release(&args.keyring).await?;
+        let release = client.fetch_latest().await?;
 
         match state {
-            Some(state) if state.version == pkg.version && !args.force_update => {
+            Some(state) if state.version == release.version && !args.force_update => {
                 info!("Latest version is already installed, not updating");
                 VersionCheck {
-                    deb: None,
-                    version: pkg.version,
+                    tarball: None,
+                    version: release.version,
                 }
             }
             _ => {
-                let deb = client.download_pkg(&pkg, download_attempts).await?;
+                let tarball = client.download_tarball(&release, download_attempts).await?;
                 VersionCheck {
-                    deb: Some(deb),
-                    version: pkg.version,
+                    tarball: Some(tarball),
+                    version: release.version,
                 }
             }
         }
     };
 
-    if let Some(deb) = update.deb {
-        extract::pkg(&deb[..], args, install_path).await?;
+    if let Some(tarball) = update.tarball {
+        extract::pkg(&tarball[..], args, install_path).await?;
     }
 
     debug!("Updating state file");
@@ -106,17 +98,17 @@ async fn update(
 }
 
 fn start(args: &Args, cf: &ConfigFile, install_path: &Path) -> Result<()> {
-    let bin = install_path.join("usr/bin/spotify");
+    let bin = install_path.join("Discord/Discord");
     let bin = CString::new(bin.to_string_lossy().as_bytes())?;
 
-    let mut exec_args = vec![CString::new("spotify")?];
+    let mut exec_args = vec![CString::new("Discord")?];
 
-    for arg in cf.spotify.extra_arguments.iter().cloned() {
+    for arg in cf.discord.extra_arguments.iter().cloned() {
         exec_args.push(CString::new(arg)?);
     }
 
     if let Some(uri) = &args.uri {
-        exec_args.push(CString::new(format!("--uri={}", uri))?);
+        exec_args.push(CString::new(uri.as_str())?);
     }
 
     debug!("Assembled command: {:?}", exec_args);
@@ -124,7 +116,7 @@ fn start(args: &Args, cf: &ConfigFile, install_path: &Path) -> Result<()> {
     if args.no_exec {
         info!("Skipping exec because --no-exec was used");
     } else {
-        cf.spotify.extra_env_vars.iter().for_each(|x| {
+        cf.discord.extra_env_vars.iter().for_each(|x| {
             let (k, v) = match x.split_once('=') {
                 None => (x.as_str(), ""),
                 Some(x) => x,
@@ -144,7 +136,7 @@ async fn main() -> Result<()> {
 
     let log_level = match args.verbose {
         0 => "info",
-        1 => "info,spotify_launcher=debug",
+        1 => "info,discord_launcher=debug",
         2 => "debug",
         _ => "trace",
     };
@@ -160,26 +152,21 @@ async fn main() -> Result<()> {
     debug!("Using install path: {:?}", install_path);
 
     let download_attempts = args.download_attempts.unwrap_or_else(|| {
-        cf.spotify
+        cf.discord
             .download_attempts
-            .unwrap_or(apt::DEFAULT_DOWNLOAD_ATTEMPTS)
+            .unwrap_or(discord::DEFAULT_DOWNLOAD_ATTEMPTS)
     });
 
-    if args.print_deb_url {
-        print_deb_url(&args).await?;
-    } else {
-        let state = paths::load_state_file().await?;
-        if should_update(&args, state.as_ref()).await? {
-            if let Err(err) = update(&args, state.as_ref(), &install_path, download_attempts).await
-            {
-                error!("Update failed: {err:#}");
-                ui::error(&err).await?;
-            }
-        } else {
-            info!("No update needed");
+    let state = paths::load_state_file().await?;
+    if should_update(&args, state.as_ref()).await? {
+        if let Err(err) = update(&args, state.as_ref(), &install_path, download_attempts).await {
+            error!("Update failed: {err:#}");
+            ui::error(&err).await?;
         }
-        start(&args, &cf, &install_path)?;
+    } else {
+        info!("No update needed");
     }
+    start(&args, &cf, &install_path)?;
 
     Ok(())
 }

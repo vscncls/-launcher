@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Discord (Launcher)
+GenericName=Internet Messenger
+Icon=discord-launcher
+TryExec=discord-launcher
+Exec=discord-launcher %U
+Terminal=false
+MimeType=x-scheme-handler/discord;
+Categories=Network;InstantMessaging;
+StartupWMClass=discord

@@ -15,7 +15,7 @@ pub struct Client {
 impl Client {
     pub fn new(timeout: Option<u64>) -> Result<Client> {
         let client = reqwest::ClientBuilder::new()
-            .user_agent(format!("spotify-launcher/{}", env!("CARGO_PKG_VERSION")))
+            .user_agent(format!("discord-launcher/{}", env!("CARGO_PKG_VERSION")))
             .redirect(reqwest::redirect::Policy::limited(8))
             .build()
             .context("Failed to create http client")?;
