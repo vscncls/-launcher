@@ -4,23 +4,23 @@ use std::path::PathBuf;
 use std::time::SystemTime;
 use tokio::fs;
 
-pub fn spotify_launcher_path() -> Result<PathBuf> {
+pub fn discord_launcher_path() -> Result<PathBuf> {
     let path = dirs::data_dir().context("Failed to detect data directory")?;
-    Ok(path.join("spotify-launcher"))
+    Ok(path.join("discord-launcher"))
 }
 
 pub fn install_path() -> Result<PathBuf> {
-    let path = spotify_launcher_path()?;
+    let path = discord_launcher_path()?;
     Ok(path.join("install"))
 }
 
 pub fn new_install_path() -> Result<PathBuf> {
-    let path = spotify_launcher_path()?;
+    let path = discord_launcher_path()?;
     Ok(path.join("install-new"))
 }
 
 pub fn state_file_path() -> Result<PathBuf> {
-    let path = spotify_launcher_path()?;
+    let path = discord_launcher_path()?;
     Ok(path.join("state.json"))
 }
 
@@ -36,7 +36,7 @@ pub async fn load_state_file() -> Result<Option<State>> {
         debug!("Reading state file from {:?}...", state_file_path);
         let buf = fs::read(&state_file_path).await.with_context(|| {
             anyhow!(
-                "Failed to read spotify-launcher state file at {:?}",
+                "Failed to read discord-launcher state file at {:?}",
                 state_file_path
             )
         })?;

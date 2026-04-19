@@ -1,15 +1,16 @@
-# Maintainer: kpcyrd <kpcyrd[at]archlinux[dot]org>
+# Maintainer: Lucas Vasconcelos <lucaslou4@gmail.com>
 
-pkgname=spotify-launcher
+pkgname=discord-launcher
 pkgver=0.0.0
 pkgrel=1
-pkgdesc="Client for spotify's apt repository in Rust for Arch Linux"
-url='https://github.com/kpcyrd/spotify-launcher'
+pkgdesc="Keeps an up-to-date Discord install in your home directory, so Discord updates don't need root"
+url='https://github.com/vscncls/discord-launcher'
 arch=('x86_64')
 license=('MIT' 'Apache')
-depends=('sequoia-sqv' 'zenity' 'alsa-lib>=1.0.14' 'gtk3' 'libxss' 'desktop-file-utils' 'openssl' 'nss' 'at-spi2-atk' 'libcurl-gnutls' 'libsm')
+depends=('zenity' 'gtk3' 'libxss' 'libnotify' 'nspr' 'nss' 'desktop-file-utils')
 makedepends=('cargo')
-backup=('etc/spotify-launcher.conf')
+backup=('etc/discord-launcher.conf')
+provides=('discord')
 
 build() {
   cd ..
@@ -19,18 +20,17 @@ build() {
 package() {
   cd ..
   install -Dm 755 -t "${pkgdir}/usr/bin" \
-    target/release/spotify-launcher
-  install -Dm 644 data/pubkey_5384CE82BA52C83A.gpg \
-    "${pkgdir}/usr/share/spotify-launcher/keyring.pgp"
+    target/release/discord-launcher
 
-  install -Dm644 contrib/spotify-launcher.desktop -t "${pkgdir}/usr/share/applications"
-  install -Dm644 contrib/icons/spotify-linux-512.png "${pkgdir}/usr/share/pixmaps/spotify-launcher.png"
-  install -Dm644 contrib/spotify-launcher.conf -t "${pkgdir}/etc"
+  install -Dm644 contrib/discord-launcher.desktop -t "${pkgdir}/usr/share/applications"
+  install -Dm644 contrib/discord-launcher.conf -t "${pkgdir}/etc"
 
-  for size in 22 24 32 48 64 128 256 512; do
-    install -Dm644 "contrib/icons/spotify-linux-${size}.png" \
-      "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/spotify-launcher.png"
-  done
+  if [ -f contrib/icons/discord.png ]; then
+    install -Dm644 contrib/icons/discord.png \
+      "${pkgdir}/usr/share/pixmaps/discord-launcher.png"
+    install -Dm644 contrib/icons/discord.png \
+      "${pkgdir}/usr/share/icons/hicolor/256x256/apps/discord-launcher.png"
+  fi
 }
 
 # vim: ts=2 sw=2 et:
