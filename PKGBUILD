@@ -1,7 +1,7 @@
 # Maintainer: Lucas Vasconcelos <lucaslou4@gmail.com>
 
 pkgname=discord-launcher
-pkgver=0.0.0
+pkgver=0.0.1
 pkgrel=1
 pkgdesc="Keeps an up-to-date Discord install in your home directory, so Discord updates don't need root"
 url='https://github.com/vscncls/discord-launcher'
@@ -11,6 +11,7 @@ depends=('zenity' 'gtk3' 'libxss' 'libnotify' 'nspr' 'nss' 'desktop-file-utils')
 makedepends=('cargo')
 backup=('etc/discord-launcher.conf')
 provides=('discord')
+options=('!lto' '!debug')
 
 build() {
   cd ..

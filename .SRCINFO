@@ -14,7 +14,9 @@ pkgbase = discord-launcher
 	depends = nspr
 	depends = nss
 	depends = desktop-file-utils
-	provides = spotify
+	provides = discord
+	options = !lto
+	options = !debug
 	backup = etc/discord-launcher.conf
 
 pkgname = discord-launcher
